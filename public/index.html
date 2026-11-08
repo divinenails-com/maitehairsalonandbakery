@@ -274,7 +274,7 @@ footer button{display:block;margin:0 0 6px;padding:0;text-align:left}
 <dialog id="privacy"><h2>Privacy Policy</h2>
 <p>Esther’s Hair Saloon &amp; Bakery (“we”) respects your privacy and follows South Africa’s Protection of Personal Information Act (POPIA).</p>
 <h3>What we collect</h3><p>Only what you type into our booking and order forms: your name, phone number, delivery address (for deliveries), and your booking or order details.</p>
-<h3>How we use it</h3><p>To confirm and prepare your booking or order and to contact you about it. The details are sent to us through WhatsApp when you press the send button. This website does not store them on a server.</p>
+<h3>How we use it</h3><p>To confirm and prepare your booking or order and to contact you about it. When you press the send button, the details are saved securely in our private order records and sent to us through WhatsApp. Only we can see the saved records.</p>
 <h3>Sharing</h3><p>We do not sell or share your information with anyone, except where the law requires it. WhatsApp handles messages under its own privacy policy.</p>
 <h3>Keeping your information</h3><p>We keep your messages only as long as needed to serve you and for our records, then delete them.</p>
 <h3>Your rights</h3><p>You may ask us to see, correct or delete your information at any time by messaging 063 239 5118.</p>
@@ -321,16 +321,19 @@ function check(f,req){var ok=true;f.querySelectorAll('.err').forEach(function(e)
 req.forEach(function(n){var el=f.elements[n.n],bad=n.c?!el.checked:!String(el.value).trim();
 if(n.p&&!bad)bad=!/^[0-9+\s()-]{9,15}$/.test(el.value.trim());
 if(bad){if(ok)el.focus();ok=false;var e=el.closest('label')?el.closest('label').querySelector('.err'):null;if(!e){e=el.closest('.check').nextElementSibling}e.textContent=n.m}});return ok}
+function save(o){try{fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o),keepalive:true}).catch(function(){})}catch(x){}}
 function send(f,lines){var u='https://wa.me/'+WA+'?text='+encodeURIComponent(lines.filter(Boolean).join('\n'));$('#waLink').href=u;$('#ok').hidden=false;$('#ok').scrollIntoView({behavior:'smooth',block:'center'});var w=null;try{w=window.open(u,'_blank')}catch(x){}if(!w){window.location.href=u}}
 hf.onsubmit=function(e){e.preventDefault();
 if(!check(hf,[{n:'name',m:'Enter your name.'},{n:'phone',p:1,m:'Enter a valid phone number.'},{n:'item',m:'Choose a hairstyle.'},{n:'date',m:'Pick a date.'},{n:'time',m:'Pick a time.'},{n:'agree',c:1,m:'Please agree to continue.'}]))return;
 var h=HAIR[hf.item.value];
+save({type:'hair',name:hf.name.value,phone:hf.phone.value,item:h[0],unitPrice:h[1],quantity:1,date:hf.date.value,time:hf.time.value,notes:hf.notes.value});
 send(hf,['*New hair booking*','Name: '+hf.name.value.trim(),'Phone: '+hf.phone.value.trim(),'Style: '+h[0]+' (R'+h[1]+')','Date: '+hf.date.value,'Time: '+hf.time.value,hf.notes.value.trim()?'Notes: '+hf.notes.value.trim():''])};
 bf.onsubmit=function(e){e.preventDefault();
 var req=[{n:'name',m:'Enter your name.'},{n:'phone',p:1,m:'Enter a valid phone number.'},{n:'item',m:'Choose an item.'},{n:'qty',m:'Enter a quantity.'},{n:'date',m:'Pick a date.'}];
 if(bf.how.value==='Delivery')req.push({n:'address',m:'Enter a delivery address.'});req.push({n:'agree',c:1,m:'Please agree to continue.'});
 if(!check(bf,req))return;
 var b=BAKE[bf.item.value],q=Math.max(1,parseInt(bf.qty.value)||1),d=bf.how.value==='Delivery';
+save({type:'bakery',name:bf.name.value,phone:bf.phone.value,item:b[0],unitPrice:b[1],quantity:q,date:bf.date.value,fulfilment:bf.how.value,address:d?bf.address.value:'',notes:bf.notes.value});
 send(bf,['*New bakery order*','Name: '+bf.name.value.trim(),'Phone: '+bf.phone.value.trim(),'Item: '+b[0]+' (R'+b[1]+' each)','Quantity: '+q,'Date needed: '+bf.date.value,'Method: '+bf.how.value,d?'Address: '+bf.address.value.trim():'',bf.notes.value.trim()?'Notes: '+bf.notes.value.trim():''])};
 // dialogs
 document.querySelectorAll('[data-open]').forEach(function(a){a.onclick=function(e){e.preventDefault();document.getElementById(a.dataset.open).showModal()}});

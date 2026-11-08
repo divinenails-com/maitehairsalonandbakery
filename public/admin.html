@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Orders | Esther’s Hair Saloon & Bakery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&family=Yellowtail&display=swap" rel="stylesheet">
+<style>
+:root{--brown:#4a2410;--caramel:#c4691a;--cream:#fbf4ea;--pink:#f7b9dc;--sun:#fdf0a6;--ink:#2b1608}
+*{box-sizing:border-box;margin:0}
+body{font-family:Nunito,system-ui,sans-serif;background:var(--cream);color:var(--ink);line-height:1.5;font-size:16px}
+header{background:var(--brown);color:#fff}
+.wrap{max-width:1100px;margin:auto;padding:0 18px}
+.bar{display:flex;align-items:center;justify-content:space-between;height:60px;gap:12px}
+.brand{font-family:Yellowtail,cursive;font-size:1.7rem;color:#fff;text-decoration:none}
+h1{font-family:Yellowtail,cursive;font-weight:400;color:var(--brown);font-size:2.4rem;margin:28px 0 12px}
+.btn{background:var(--caramel);color:#fff;border:0;border-radius:12px;padding:10px 20px;font:800 .95rem Nunito,sans-serif;cursor:pointer}
+.btn.ghost{background:transparent;border:1.5px solid #fff}
+.btn.sm{padding:6px 12px;font-size:.85rem}
+.btn.danger{background:#a33}
+input,select{font:inherit;padding:10px;border:1.5px solid #9b7a62;border-radius:8px;background:#fff}
+#login{max-width:380px;margin:60px auto;background:#fff;border:1px solid #e0c9b0;border-radius:16px;padding:26px;display:grid;gap:14px;box-shadow:0 18px 40px rgba(74,36,16,.12)}
+.err{color:#a33;font-weight:700;min-height:1.2em}
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.stats{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+.stat{background:#fff;border:1px solid #e0c9b0;border-radius:12px;padding:10px 16px;min-width:130px}
+.stat b{display:block;font-size:1.4rem;color:var(--brown)}
+.list{display:grid;gap:12px;margin-bottom:40px}
+.card{background:#fff;border:1px solid #e0c9b0;border-left:6px solid var(--caramel);border-radius:12px;padding:14px 16px;display:grid;gap:6px}
+.card.hair{border-left-color:#c2549a}
+.card.cancelled{opacity:.55}
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center}
+.tag{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:800;background:var(--sun);color:var(--brown);margin-right:6px}
+.tag.hair{background:var(--pink)}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.93rem}
+.meta span b{color:var(--brown)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+.empty{background:#fff;border-radius:12px;padding:24px;text-align:center}
+small{color:#6b5040}
+</style>
+</head>
+<body>
+<header><div class="wrap bar"><a class="brand" href="/">Esther’s</a><button class="btn ghost sm" id="logout" hidden>Log out</button></div></header>
+
+<form id="login">
+<h1 style="margin:0">Orders</h1>
+<label>Admin password<br><input type="password" name="pw" autocomplete="current-password" required style="width:100%"></label>
+<div class="err" id="loginErr" role="alert"></div>
+<button class="btn" type="submit">View orders</button>
+</form>
+
+<main class="wrap" id="app" hidden>
+<h1>Customer orders</h1>
+<div class="tools">
+<select id="fType" aria-label="Filter by type"><option value="">All types</option><option value="hair">Hair bookings</option><option value="bakery">Bakery orders</option></select>
+<select id="fStatus" aria-label="Filter by status"><option value="">All statuses</option><option value="new">New</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>
+<input id="q" type="search" placeholder="Search name or phone" aria-label="Search">
+<button class="btn sm" id="refresh">Refresh</button>
+<button class="btn sm" id="csv">Download CSV</button>
+</div>
+<div class="stats" id="stats"></div>
+<div class="list" id="list"></div>
+</main>
+
+<script>
+var $=function(s){return document.querySelector(s)},PW=sessionStorage.getItem('adminPw')||'',ROWS=[];
+var STAT=['new','confirmed','completed','cancelled'];
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function api(path,opt){opt=opt||{};opt.headers=Object.assign({'x-admin-password':PW,'Content-Type':'application/json'},opt.headers||{});
+return fetch(path,opt).then(function(r){if(r.status===401){logout('Wrong password.');throw new Error('401')}if(!r.ok)throw new Error('Request failed ('+r.status+')');return r.status===204?null:r.json()})}
+function logout(msg){PW='';sessionStorage.removeItem('adminPw');$('#app').hidden=true;$('#logout').hidden=true;$('#login').hidden=false;$('#loginErr').textContent=msg||''}
+function load(){var p=new URLSearchParams();if($('#fType').value)p.set('type',$('#fType').value);if($('#fStatus').value)p.set('status',$('#fStatus').value);
+return api('/api/admin/orders?'+p).then(function(rows){ROWS=rows;$('#login').hidden=true;$('#app').hidden=false;$('#logout').hidden=false;render()}).catch(function(e){if(e.message!=='401')alert(e.message)})}
+function filtered(){var q=$('#q').value.trim().toLowerCase();return ROWS.filter(function(o){return!q||o.customerName.toLowerCase().indexOf(q)>-1||o.phone.replace(/\s/g,'').indexOf(q.replace(/\s/g,''))>-1})}
+function fmtDate(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'}):''}
+function render(){var rows=filtered(),c={new:0,confirmed:0},sum=0;
+rows.forEach(function(o){if(c[o.status]!=null)c[o.status]++;if(o.status!=='cancelled')sum+=o.total});
+$('#stats').innerHTML='<div class="stat">Showing<b>'+rows.length+'</b></div><div class="stat">New<b>'+c.new+'</b></div><div class="stat">Confirmed<b>'+c.confirmed+'</b></div><div class="stat">Value (excl. cancelled)<b>R'+sum.toLocaleString('en-ZA')+'</b></div>';
+if(!rows.length){$('#list').innerHTML='<div class="empty">No orders yet.</div>';return}
+$('#list').innerHTML=rows.map(function(o){var wa='https://wa.me/'+o.phone.replace(/\D/g,'').replace(/^0/,'27');
+return'<article class="card '+esc(o.type)+' '+esc(o.status)+'"><div class="top"><div><span class="tag '+esc(o.type)+'">'+(o.type==='hair'?'Hair booking':'Bakery order')+'</span><b>#'+o.id+' · '+esc(o.customerName)+'</b></div><small>Received '+new Date(o.createdAt).toLocaleString('en-ZA')+'</small></div>'+
+'<div class="meta"><span><b>Phone:</b> <a href="tel:'+esc(o.phone)+'">'+esc(o.phone)+'</a> · <a href="'+esc(wa)+'" target="_blank" rel="noopener">WhatsApp</a></span><span><b>Item:</b> '+esc(o.item)+(o.quantity>1?' × '+o.quantity:'')+'</span><span><b>Total:</b> R'+o.total+'</span>'+
+'<span><b>'+(o.type==='hair'?'Date':'Needed')+':</b> '+fmtDate(o.date)+(o.time?' at '+esc(o.time.slice(0,5)):'')+'</span>'+(o.fulfilment?'<span><b>Method:</b> '+esc(o.fulfilment)+'</span>':'')+'</div>'+
+(o.address?'<div><b>Address:</b> '+esc(o.address)+'</div>':'')+(o.notes?'<div><b>Notes:</b> '+esc(o.notes)+'</div>':'')+
+'<div class="acts"><label>Status <select data-status="'+o.id+'">'+STAT.map(function(s){return'<option'+(s===o.status?' selected':'')+'>'+s+'</option>'}).join('')+'</select></label><button class="btn sm danger" data-del="'+o.id+'">Delete</button></div></article>'}).join('')}
+$('#list').addEventListener('change',function(e){var id=e.target.dataset.status;if(!id)return;
+api('/api/admin/orders/'+id,{method:'PATCH',body:JSON.stringify({status:e.target.value})}).then(function(row){ROWS=ROWS.map(function(o){return o.id===row.id?row:o});render()}).catch(function(err){if(err.message!=='401')alert(err.message)})});
+$('#list').addEventListener('click',function(e){var id=e.target.dataset.del;if(!id||!confirm('Delete order #'+id+'? This cannot be undone.'))return;
+api('/api/admin/orders/'+id,{method:'DELETE'}).then(function(){ROWS=ROWS.filter(function(o){return o.id!==+id});render()}).catch(function(err){if(err.message!=='401')alert(err.message)})});
+$('#login').onsubmit=function(e){e.preventDefault();PW=this.pw.value;sessionStorage.setItem('adminPw',PW);$('#loginErr').textContent='';load()};
+$('#logout').onclick=function(){logout()};
+$('#fType').onchange=$('#fStatus').onchange=$('#refresh').onclick=load;
+$('#q').oninput=render;
+$('#csv').onclick=function(){var cols=['id','type','status','customerName','phone','item','unitPrice','quantity','total','date','time','fulfilment','address','notes','createdAt'];
+var csv=[cols.join(',')].concat(filtered().map(function(o){return cols.map(function(k){var v=o[k]==null?'':String(o[k]);if(/^[=+\-@]/.test(v))v="'"+v;return'"'+v.replace(/"/g,'""')+'"'}).join(',')})).join('\r\n');
+var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='orders-'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
+if(PW)load();
+</script>
+</body>
+</html>
